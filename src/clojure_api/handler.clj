@@ -2,20 +2,24 @@
   (:require [compojure.core :refer :all]
             [compojure.route :as route]
             [clojurewerkz.neocons.rest        :as nr]
+            [clojurewerkz.neocons.rest.nodes :as nn]
+            [clojurewerkz.neocons.rest.cypher :as cy]
+            [clojurewerkz.neocons.rest.labels :as nl]
             [compojure.handler                :as handler]
             [ring.middleware.json             :as rj]
             [ring.util.response               :as resp]
-            [clojurewerkz.neocons.rest.cypher :as cy]
             [ring.middleware.defaults :refer [wrap-defaults site-defaults]]))
 
-(def conn (nr/connect "http://localhost:7474/db/data/" "neo4j" "test"))
+(def conn (nr/connect "http://localhost:7474/db/data/" "neo4j" "teste"))
 
 (def task-query "MATCH (task:Task) RETURN task"
   )
 
-(def insert-query
-  [desc, status]
-  (nr/create conn {:desc desc, :status status})
+(defn insert-query
+  [ description status ]
+  (let [node (nn/create conn {:description description :status status})]
+    (nl/add conn node "Task")
+   node)
  )
 
 (defn get-tasks
@@ -25,16 +29,15 @@
  )
 
 (defn insert-task
-  [description,
-   status]
-  (let [result (cy/tquery conn insert-query {:desc description, :status status})]
-   )
+  [ description status]
+  (let [result (insert-query description status)]
+   result)
  )
 
 (defroutes app-routes
   (GET "/" [] "Hello World")
   (GET "/tasks" [] (resp/response (get-tasks)))
-  (POST "/tasks" [description status :as request] (resp/response (insert-task (:params request))))
+  (POST "/tasks" [description status] (resp/response (insert-task description status)))
   (route/not-found "Not Found"))
 
 
